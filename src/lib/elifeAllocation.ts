@@ -1,4 +1,12 @@
 export interface AllocationPanchayath { id: string; name: string; district: string | null }
+/** The e-Life reporting leader of an agent (pennyekart_agents.parent_agent_id). */
+export interface AllocationParent {
+  id: string;
+  name: string | null;
+  mobile: string | null;
+  role: string;
+  ward: string | number | null;
+}
 export interface AllocationPerson {
   id: string;
   source: string;
@@ -8,6 +16,8 @@ export interface AllocationPerson {
   ward: string | number | null;
   /** Coordinators only: wards they cover inside their single panchayath. */
   wards?: string[];
+  /** pennyekart_agents only: the leader this agent reports to. */
+  parent?: AllocationParent | null;
   is_active: boolean;
   panchayaths: AllocationPanchayath[];
 }

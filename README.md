@@ -72,18 +72,8 @@ To connect a domain, navigate to Project > Settings > Domains and click Connect 
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
 
-
-22/10/26 cloud shelf
-22/10/26 agents 2
-25/10/26 anasmon eva
-25/10/26 agent
-25-10-26 cloud shelf
-26-10-26 prim
-27/10-26 agent
-27-10-26 prime peny
-27-10-26  anasmon elife
 28/10-26 handrest
 29-10-26 anasmoneloife
 29-10-26 evaselfi
 29-10-26 employment
-
+29-10-26 anasmoneloife

@@ -645,6 +645,12 @@ const UsersPage = () => {
                   </summary>
                   <div className="space-y-3 border-t p-3 text-sm">
                     {u.customer_id && <div className="font-mono text-xs text-muted-foreground">{u.customer_id}</div>}
+                    <div className="text-xs">
+                      <span className="text-muted-foreground">Location: </span>
+                      {u.district_name ?? "—"}
+                      {u.local_body_name && <span> · {u.local_body_name}</span>}
+                      {u.ward_number != null && <span> · Ward {u.ward_number}</span>}
+                    </div>
                     <div className="break-all text-xs">{u.email ?? "—"}</div>
                     {u.user_type === "selling_partner" && (
                       <div className="flex items-center justify-between gap-2">
@@ -705,6 +711,9 @@ const UsersPage = () => {
                   <TableRow>
                     <TableHead>User</TableHead>
                     <TableHead>Contact</TableHead>
+                    <TableHead>District</TableHead>
+                    <TableHead>Panchayath</TableHead>
+                    <TableHead>Ward</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Seller Type</TableHead>
                     <TableHead>Approved</TableHead>
@@ -724,6 +733,9 @@ const UsersPage = () => {
                         <div className="text-sm">{u.email ?? "—"}</div>
                         {u.mobile_number && <div className="text-xs text-muted-foreground">{u.mobile_number}</div>}
                       </TableCell>
+                      <TableCell><span className="text-xs text-muted-foreground">{u.district_name ?? "—"}</span></TableCell>
+                      <TableCell><span className="text-xs text-muted-foreground">{u.local_body_name ?? "—"}</span></TableCell>
+                      <TableCell><span className="text-xs text-muted-foreground">{u.ward_number ?? "—"}</span></TableCell>
                       <TableCell>
                         <Badge variant={getTypeBadgeVariant(u.user_type)}>
                           {USER_TYPE_LABELS[u.user_type] ?? u.user_type}

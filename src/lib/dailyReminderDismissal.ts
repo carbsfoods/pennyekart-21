@@ -1,4 +1,4 @@
-export type ReminderRole = "delivery" | "seller" | "utility";
+export type ReminderRole = "delivery" | "seller" | "utility" | "community";
 
 const dismissalKey = (role: ReminderRole, userId: string) =>
   `daily_reminders_dismissed_${role}_${userId}`;

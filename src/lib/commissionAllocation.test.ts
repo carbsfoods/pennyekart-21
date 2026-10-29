@@ -79,3 +79,40 @@ describe("hierarchy commission rows", () => {
     expect(sap.every((r) => r.commission_rate === 8)).toBe(true);
   });
 });
+
+describe("group leader rule", () => {
+  const leader = { id: "gl1", name: "Group Leader", mobile: "9800000001", role: "group leader", ward: 7 };
+  const pro = (ward: string | number | null = 7, parent: any = leader): AllocationPerson => ({
+    id: "p1", source: "pennyekart_agents", name: "Pro", mobile: "919876543210", role: "pro",
+    ward, parent, is_active: true, panchayaths: [],
+  });
+  const creatorComm = (profit: number): AreaCommunity => ({
+    community_id: "A", community_name: "A", creator_name: "Pro", creator_mobile: "9876543210",
+    local_body_name: "Pandikkad", ward_number: 7, member_count: 1, order_count: 1, revenue: profit, profit,
+  });
+
+  it("pays the reporting group leader of a same-ward pro at the group leader rate", async () => {
+    const { buildGroupLeaderRows } = await import("./commissionAllocation");
+    const rows = buildGroupLeaderRows([pro()], [creatorComm(200)], () => 10);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      recipient_type: "group_leader", recipient_name: "Group Leader", recipient_mobile: "9800000001",
+      total_profit: 200, commission_rate: 10, share_count: 1, calculated_commission: 20,
+    });
+    expect(rows[0].customer_user_id).toBeNull();
+  });
+
+  it("skips a pro reporting to a leader in another ward", async () => {
+    const { buildGroupLeaderRows } = await import("./commissionAllocation");
+    expect(buildGroupLeaderRows([pro(14)], [creatorComm(200)], () => 10)).toHaveLength(0);
+    expect(buildGroupLeaderRows([pro(14, { ...leader, ward: 14 })], [creatorComm(200)], () => 10)).toHaveLength(0);
+  });
+
+  it("skips pros whose parent is not a group leader, inactive pros and non-pro creators", async () => {
+    const { buildGroupLeaderRows } = await import("./commissionAllocation");
+    expect(buildGroupLeaderRows([pro(7, { ...leader, role: "coordinator" })], [creatorComm(200)], () => 10)).toHaveLength(0);
+    expect(buildGroupLeaderRows([pro(7, null)], [creatorComm(200)], () => 10)).toHaveLength(0);
+    expect(buildGroupLeaderRows([{ ...pro(), is_active: false }], [creatorComm(200)], () => 10)).toHaveLength(0);
+    expect(buildGroupLeaderRows([pro()], [{ ...creatorComm(200), creator_mobile: "9000000000" }], () => 10)).toHaveLength(0);
+  });
+});

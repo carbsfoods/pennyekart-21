@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { commissionRateForRole, type CommissionRule } from "@/lib/communityCommission";
 import { commissionAmount, commissionDate, commissionRange } from "@/lib/commissionPayout";
-import { buildHierarchyRows, groupAllocationRows, rateRoleName, type AreaCommunity, type PayoutRow } from "@/lib/commissionAllocation";
+import { buildGroupLeaderRows, buildHierarchyRows, groupAllocationRows, rateRoleName, type AreaCommunity, type PayoutRow } from "@/lib/commissionAllocation";
 import { isAllocationRole, normalizeRoleName, type AllocationPerson } from "@/lib/elifeAllocation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +23,7 @@ interface SavedRow {
 }
 interface Props { roles?: { id: string; name: string }[]; rules: Record<string, CommissionRule>; fallbackRate: number; ready: boolean }
 const money = (n: number) => `₹${Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const TYPE_LABEL: Record<string, string> = { creator: "Creator", coordinator: "Coordinator", team_leader: "Team leader", super_admin: "Super admin partner" };
+const TYPE_LABEL: Record<string, string> = { creator: "Creator", group_leader: "Group leader", coordinator: "Coordinator", team_leader: "Team leader", super_admin: "Super admin partner" };
 
 export default function CommunityCommissionTable({ roles = [], rules, fallbackRate, ready }: Props) {
   const today = commissionDate();

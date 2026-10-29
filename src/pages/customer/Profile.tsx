@@ -22,6 +22,8 @@ import NotificationDetailDialog from "@/components/NotificationDetailDialog";
 import ScratchCardWidget from "@/components/ScratchCardWidget";
 import VerifyAccountCard from "@/components/customer/VerifyAccountCard";
 import CommunityAccessSection from "@/components/customer/CommunityAccessSection";
+import CommunityInvitesSection from "@/components/customer/CommunityInvitesSection";
+import CommunityInviteAlert from "@/components/customer/CommunityInviteAlert";
 import AddressBook from "@/components/customer/AddressBook";
 import OrderDetailDialog from "@/components/OrderDetailDialog";
 import { BadgeCheck } from "lucide-react";
@@ -610,6 +612,11 @@ const Profile = () => {
           <CommunityAccessSection userId={user.id} />
         )}
 
+        {/* Pending community invitations for roles without the community card */}
+        {activeSection === "profile" && user && (
+          <CommunityInvitesSection userId={user.id} />
+        )}
+
         {activeSection === "profile" && <TodaysWorkSection />}
 
         {/* Scratch & Win rewards */}
@@ -753,6 +760,8 @@ const Profile = () => {
           open={detailOpen}
           onOpenChange={(o) => { setDetailOpen(o); if (!o) setTimeout(() => setSelectedNotification(null), 200); }}
         />
+
+        <CommunityInviteAlert userId={user.id} />
 
 
         <NotificationToggle />

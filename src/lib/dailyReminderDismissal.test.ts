@@ -22,6 +22,13 @@ describe("daily reminder dismissal", () => {
     expect(areDailyRemindersDismissed("delivery", "staff-1")).toBe(false);
   });
 
+  it("suppresses community invitation reminders for the day without touching other roles", () => {
+    expect(areDailyRemindersDismissed("community", "customer-1")).toBe(false);
+    dismissDailyReminders("community", "customer-1");
+    expect(areDailyRemindersDismissed("community", "customer-1")).toBe(true);
+    expect(areDailyRemindersDismissed("delivery", "customer-1")).toBe(false);
+  });
+
   it("keeps dismissals isolated between users and partner roles", () => {
     dismissDailyReminders("seller", "seller-1");
     expect(areDailyRemindersDismissed("seller", "seller-1")).toBe(true);

@@ -102,10 +102,12 @@ describe("group leader rule", () => {
     expect(rows[0].customer_user_id).toBeNull();
   });
 
-  it("skips a pro reporting to a leader in another ward", async () => {
+  it("skips a pro whose group leader is in another ward or not set", async () => {
     const { buildGroupLeaderRows } = await import("./commissionAllocation");
     expect(buildGroupLeaderRows([pro(14)], [creatorComm(200)], () => 10)).toHaveLength(0);
-    expect(buildGroupLeaderRows([pro(14, { ...leader, ward: 14 })], [creatorComm(200)], () => 10)).toHaveLength(0);
+    expect(buildGroupLeaderRows([pro(null, { ...leader, ward: 7 })], [creatorComm(200)], () => 10)).toHaveLength(0);
+    // Ward match is between the Pro and their Group Leader — any community the Pro creates pays.
+    expect(buildGroupLeaderRows([pro(14, { ...leader, ward: 14 })], [{ ...creatorComm(200), ward_number: 14 }], () => 10)).toHaveLength(1);
   });
 
   it("skips pros whose parent is not a group leader, inactive pros and non-pro creators", async () => {

@@ -48,6 +48,7 @@ export const fetchAreaCommunities = async (from: string | null, to: string | nul
       community_id: r.community_id,
       community_name: r.community_name,
       creator_name: r.creator_name ?? null,
+      creator_mobile: r.creator_mobile ?? null,
       local_body_name: profile?.local_body_id ? bodyName.get(profile.local_body_id) ?? null : null,
       ward_number: profile?.ward_number ?? null,
       member_count: Number(r.member_count) || 0,

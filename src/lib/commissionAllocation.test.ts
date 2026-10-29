@@ -3,7 +3,7 @@ import { buildAllocation, communitiesInArea, normalizeAreaName, periodRange, typ
 import type { AllocationPerson } from "./elifeAllocation";
 
 const community = (id: string, area: string, ward: number, profit: number): AreaCommunity => ({
-  community_id: id, community_name: id, creator_name: null, local_body_name: area, ward_number: ward,
+  community_id: id, community_name: id, creator_name: null, creator_mobile: null, local_body_name: area, ward_number: ward,
   member_count: 1, order_count: 1, revenue: profit, profit,
 });
 const person = (role: string, areas: string[], wards: string[] = []): AllocationPerson => ({

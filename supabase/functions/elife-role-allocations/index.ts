@@ -93,11 +93,13 @@ Deno.serve(async (req) => {
 
     const people: any[] = [];
     const seen = new Set<string>();
+    let agentRows: Record<string, unknown>[] = [];
     for (const t of PEOPLE_TABLES) {
       if (!ok(t)) { blocked.push(t); continue; }
       const { rows, error } = await fetchAll(elife, t);
       if (error) { sources[t] = error; continue; }
       sources[t] = rows.length;
+      if (t === "pennyekart_agents") agentRows = rows;
       const refCols = t === "admins" ? ["admin_id", "user_id"] : ["agent_id", "pennyekart_agent_id", "member_id"];
       for (const r of rows) {
         const role = pickRole(r);
@@ -124,6 +126,9 @@ Deno.serve(async (req) => {
         });
       }
     }
+
+    // Resolve each agent's reporting Group Leader (parent_agent_id) for the Group Leader commission rule.
+    attachParents(people, agentRows);
 
     return json({ ok: true, people, sources, blocked_tables: [...new Set(blocked)] });
   } catch (e) {

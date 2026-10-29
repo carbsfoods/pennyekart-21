@@ -497,13 +497,14 @@ const ReportsPage = () => {
     const topSpenders = [...filtered].sort((a, b) => b.totalSpent - a.totalSpent).slice(0, 10);
 
     // Activity by panchayath
-    const lbActivity: Record<string, { name: string; active: number; inactive: number; neverOrdered: number; total: number }> = {};
+    const lbActivity: Record<string, { name: string; active: number; inactive: number; newCust: number; neverOrdered: number; total: number }> = {};
     filtered.forEach(c => {
       const lbName = c.localBodyId ? (lbMap[c.localBodyId] || "Unknown") : "Unknown";
-      if (!lbActivity[lbName]) lbActivity[lbName] = { name: lbName, active: 0, inactive: 0, neverOrdered: 0, total: 0 };
+      if (!lbActivity[lbName]) lbActivity[lbName] = { name: lbName, active: 0, inactive: 0, newCust: 0, neverOrdered: 0, total: 0 };
       lbActivity[lbName].total++;
       if (c.status === "active") lbActivity[lbName].active++;
       else if (c.status === "inactive") lbActivity[lbName].inactive++;
+      else if (c.status === "new") lbActivity[lbName].newCust++;
       else lbActivity[lbName].neverOrdered++;
     });
     const lbActivityArr = Object.values(lbActivity).sort((a, b) => b.total - a.total).slice(0, 10);
@@ -768,16 +769,17 @@ const ReportsPage = () => {
   );
 
   const customerAreaTable = () => {
-    const m: Record<string, { total: number; active: number; inactive: number; never: number }> = {};
+    const m: Record<string, { total: number; active: number; inactive: number; new: number; never: number }> = {};
     customerAnalytics.filtered.forEach(c => {
       const n = c.localBodyId ? lbMap[c.localBodyId] || "Unknown" : "Unknown";
-      const r = m[n] || (m[n] = { total: 0, active: 0, inactive: 0, never: 0 });
-      r.total++; if (c.status === "active") r.active++; else if (c.status === "inactive") r.inactive++; else r.never++;
+      const r = m[n] || (m[n] = { total: 0, active: 0, inactive: 0, new: 0, never: 0 });
+      r.total++; if (c.status === "active") r.active++; else if (c.status === "inactive") r.inactive++;
+      else if (c.status === "new") r.new++; else r.never++;
     });
     return (
       <DetailTable
-        cols={[{ label: "Area" }, { label: "Customers", right: true }, { label: "Active", right: true }, { label: "Inactive", right: true }, { label: "New / Never Ordered", right: true }]}
-        rows={Object.entries(m).sort((a, b) => b[1].total - a[1].total).map(([n, r]) => [n, r.total, r.active, r.inactive, r.never])}
+        cols={[{ label: "Area" }, { label: "Customers", right: true }, { label: "Active", right: true }, { label: "Inactive", right: true }, { label: "New", right: true }, { label: "Never Ordered", right: true }]}
+        rows={Object.entries(m).sort((a, b) => b[1].total - a[1].total).map(([n, r]) => [n, r.total, r.active, r.inactive, r.new, r.never])}
         empty="No location data"
       />
     );
@@ -1558,6 +1560,7 @@ const ReportsPage = () => {
                       <Legend />
                       <Bar dataKey="active" name="Active" stackId="a" fill="hsl(var(--chart-3,160 60% 45%))" />
                       <Bar dataKey="inactive" name="Inactive" stackId="a" fill="hsl(var(--destructive))" />
+                      <Bar dataKey="newCust" name="New" stackId="a" fill="hsl(var(--chart-1,220 80% 55%))" />
                       <Bar dataKey="neverOrdered" name="Never Ordered" stackId="a" fill="hsl(var(--chart-4,30 80% 55%))" />
                     </BarChart>
                   </ResponsiveContainer>

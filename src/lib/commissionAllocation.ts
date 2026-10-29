@@ -6,6 +6,7 @@ export interface AreaCommunity {
   community_id: string;
   community_name: string;
   creator_name: string | null;
+  creator_mobile: string | null;
   local_body_name: string | null;
   ward_number: number | null;
   member_count: number;
@@ -73,9 +74,9 @@ export const periodRange = (period: AllocationPeriod, now = new Date()) => {
   };
 };
 
-export type RecipientType = "creator" | "coordinator" | "team_leader" | "super_admin";
+export type RecipientType = "creator" | "group_leader" | "coordinator" | "team_leader" | "super_admin";
 /** Creator first, then the hierarchy roles — the order allocation rows are shown in. */
-export const RECIPIENT_TYPE_ORDER: RecipientType[] = ["creator", "coordinator", "team_leader", "super_admin"];
+export const RECIPIENT_TYPE_ORDER: RecipientType[] = ["creator", "group_leader", "coordinator", "team_leader", "super_admin"];
 
 export interface AllocationRowGroup<T> {
   community_id: string;
@@ -137,6 +138,54 @@ const hierarchyTypeForRole = (role: string): RecipientType | null => {
   if (r === "team leader") return "team_leader";
   if (r === "coordinator") return "coordinator";
   return null;
+};
+
+/** Mobiles compare on the last 10 digits so 91/0 prefixes never break a match. */
+const mobileKey = (raw: string | null | undefined) => {
+  const s = String(raw ?? "").replace(/\D/g, "");
+  return s.length >= 10 ? s.slice(-10) : "";
+};
+
+const wardKey = (ward: string | number | null | undefined) => {
+  const s = String(ward ?? "").trim();
+  return s === "" ? null : s;
+};
+
+/**
+ * Group Leader rule: when a community's creator is a Pro who reports to a Group Leader
+ * (e-Life parent_agent_id) in the same ward, the Group Leader earns a share of that
+ * community's profit at the Group Leader rate. The Pro keeps their own creator commission.
+ */
+export const buildGroupLeaderRows = (
+  people: AllocationPerson[],
+  communities: AreaCommunity[],
+  rateForRole: (role: string) => number,
+): PayoutRow[] => {
+  const prosByMobile = new Map<string, AllocationPerson>();
+  for (const p of people) {
+    if (p.is_active === false) continue;
+    const key = mobileKey(p.mobile);
+    if (key && normalizeRoleName(p.role) === "pro") prosByMobile.set(key, p);
+  }
+  const rows: PayoutRow[] = [];
+  for (const c of communities) {
+    const pro = prosByMobile.get(mobileKey(c.creator_mobile));
+    if (!pro || c.profit <= 0) continue;
+    const parent = pro.parent;
+    if (!parent?.id || normalizeRoleName(parent.role) !== "group leader") continue;
+    const proWard = wardKey(pro.ward);
+    const parentWard = wardKey(parent.ward);
+    if (!proWard || proWard !== parentWard) continue;
+    rows.push({
+      community_id: c.community_id, community_name: c.community_name, recipient_type: "group_leader",
+      recipient_name: parent.name, recipient_mobile: parent.mobile,
+      elife_person_id: `${pro.source}:${parent.id}`,
+      customer_user_id: null, total_profit: c.profit,
+      commission_rate: rateForRole("group leader"), share_count: 1,
+      calculated_commission: (c.profit * rateForRole("group leader")) / 100,
+    });
+  }
+  return rows;
 };
 
 /**

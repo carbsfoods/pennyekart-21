@@ -1,21 +1,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { adminClient, corsHeaders, getUserId, json } from "../_shared/auth.ts";
-import { allocatedPanchayathIds, allocatedWards, normalizeRole, toIds } from "./allocation.ts";
-
-const normalizeMobile = (raw: unknown) => {
-  const s = String(raw ?? "").replace(/\D/g, "");
-  return s.length >= 10 ? s.slice(-10) : "";
-};
-const MOBILE_COLS = ["mobile", "mobile_number", "phone", "phone_number", "whatsapp_number"];
-const ROLE_COLS = ["role", "role_name", "designation", "agent_role", "position", "rank"];
-const pickMobile = (row: Record<string, unknown>) => {
-  for (const c of MOBILE_COLS) { const m = normalizeMobile(row[c]); if (m) return m; }
-  return "";
-};
-const pickRole = (row: Record<string, unknown>) => {
-  for (const c of ROLE_COLS) { const r = normalizeRole(row[c]); if (r) return r; }
-  return "";
-};
+import {
+  allocatedPanchayathIds, allocatedWards, attachParents, normalizeMobile, pickMobile, pickRole, toIds,
+} from "./allocation.ts";
 
 // Read-only: lists e-Life people (admins + Pennyekart agents) with their role and allocated panchayaths.
 const PEOPLE_TABLES = ["admins", "pennyekart_agents"];
@@ -106,11 +93,13 @@ Deno.serve(async (req) => {
 
     const people: any[] = [];
     const seen = new Set<string>();
+    let agentRows: Record<string, unknown>[] = [];
     for (const t of PEOPLE_TABLES) {
       if (!ok(t)) { blocked.push(t); continue; }
       const { rows, error } = await fetchAll(elife, t);
       if (error) { sources[t] = error; continue; }
       sources[t] = rows.length;
+      if (t === "pennyekart_agents") agentRows = rows;
       const refCols = t === "admins" ? ["admin_id", "user_id"] : ["agent_id", "pennyekart_agent_id", "member_id"];
       for (const r of rows) {
         const role = pickRole(r);
@@ -137,6 +126,9 @@ Deno.serve(async (req) => {
         });
       }
     }
+
+    // Resolve each agent's reporting Group Leader (parent_agent_id) for the Group Leader commission rule.
+    attachParents(people, agentRows);
 
     return json({ ok: true, people, sources, blocked_tables: [...new Set(blocked)] });
   } catch (e) {

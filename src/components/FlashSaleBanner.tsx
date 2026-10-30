@@ -183,13 +183,27 @@ const FlashSaleBanner = () => {
                 <CountdownTimer target={isUpcoming ? sale.start_time : sale.end_time} />
               </div>
 
-              {/* Right: Dismiss */}
-              <button
-                onClick={e => { e.stopPropagation(); setDismissed(d => [...d, sale.id]); }}
-                className="shrink-0 p-1 rounded-full hover:bg-primary-foreground/20 transition-colors self-start"
-              >
-                <X className="h-3.5 w-3.5 text-primary-foreground/80" />
-              </button>
+              {/* Right: Share on WhatsApp + Dismiss */}
+              <div className="flex flex-col items-center gap-1 shrink-0 self-start">
+                <button
+                  aria-label="Share on WhatsApp"
+                  onClick={e => {
+                    e.stopPropagation();
+                    const message = flashSaleWhatsAppMessage(sale.title, flashSaleShareLink(sale.id));
+                    window.open(whatsappShareUrl(message), "_blank", "noopener,noreferrer");
+                  }}
+                  className="p-1.5 rounded-full hover:bg-primary-foreground/20 transition-colors"
+                >
+                  <MessageCircle className="h-3.5 w-3.5 text-primary-foreground/90" />
+                </button>
+                <button
+                  aria-label="Dismiss"
+                  onClick={e => { e.stopPropagation(); setDismissed(d => [...d, sale.id]); }}
+                  className="p-1 rounded-full hover:bg-primary-foreground/20 transition-colors"
+                >
+                  <X className="h-3.5 w-3.5 text-primary-foreground/80" />
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -26,7 +26,7 @@ const CountdownTimer = ({ target }: { target: string }) => {
 
   useEffect(() => {
     const calc = () => {
-      const diff = Math.max(0, new Date(endTime).getTime() - Date.now());
+      const diff = Math.max(0, new Date(target).getTime() - Date.now());
       setTimeLeft({
         h: Math.floor(diff / 3600000),
         m: Math.floor((diff % 3600000) / 60000),
@@ -183,7 +183,8 @@ const FlashSaleBanner = () => {
             </div>
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 };

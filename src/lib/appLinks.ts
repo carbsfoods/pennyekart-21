@@ -27,6 +27,17 @@ export const productShareLink = (productId: string, coupon?: string): string =>
     ? `${SITE_URL}/product/${productId}?coupon=${encodeURIComponent(coupon)}`
     : `${SITE_URL}/product/${productId}`;
 
+/**
+ * Shareable flash-sale link on the canonical domain (same pattern as
+ * productShareLink; WhatsApp previews resolve it, Android opens the browser
+ * route — /flash-sale is not an autoVerify app-link path).
+ */
+export const flashSaleShareLink = (saleId: string): string =>
+  `${SITE_URL}/flash-sale/${saleId}`;
+
+export const flashSaleWhatsAppMessage = (title: string, link: string): string =>
+  `⚡ ${title} — flash prices are on at Pennyekart! Grab them before it ends.\n\nTap to shop:\n${link}`;
+
 export type LinkDevice = "app" | "mobile_browser" | "desktop";
 
 export const resolveLinkDevice = (isNative: boolean, userAgent: string): LinkDevice => {

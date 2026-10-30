@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Zap, X } from "lucide-react";
+import { Zap, X, MessageCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
+import { whatsappShareUrl, flashSaleShareLink, flashSaleWhatsAppMessage } from "@/lib/appLinks";
 
 interface FlashSale {
   id: string;
@@ -63,6 +65,7 @@ const FlashSaleBanner = () => {
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [now, setNow] = useState(() => Date.now());
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
     // Keep upcoming/live classification fresh between refetches.
@@ -122,7 +125,14 @@ const FlashSaleBanner = () => {
           key={sale.id}
           className="relative overflow-hidden cursor-pointer shadow-2xl"
           style={{ background: `linear-gradient(120deg, ${sale.banner_color} 0%, ${sale.banner_color}ee 40%, ${sale.banner_color}bb 70%, ${sale.banner_color} 100%)` }}
-          onClick={() => navigate(`/flash-sale/${sale.id}`)}
+          onClick={() => {
+            // Never open the flash sale page before the offer starts.
+            if (isUpcoming) {
+              toast({ title: "Flash sale starts soon", description: "The offer page opens once the sale begins." });
+              return;
+            }
+            navigate(`/flash-sale/${sale.id}`);
+          }}
         >
           {/* Animated shimmer sweep */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -173,13 +183,27 @@ const FlashSaleBanner = () => {
                 <CountdownTimer target={isUpcoming ? sale.start_time : sale.end_time} />
               </div>
 
-              {/* Right: Dismiss */}
-              <button
-                onClick={e => { e.stopPropagation(); setDismissed(d => [...d, sale.id]); }}
-                className="shrink-0 p-1 rounded-full hover:bg-primary-foreground/20 transition-colors self-start"
-              >
-                <X className="h-3.5 w-3.5 text-primary-foreground/80" />
-              </button>
+              {/* Right: Share on WhatsApp + Dismiss */}
+              <div className="flex flex-col items-center gap-1 shrink-0 self-start">
+                <button
+                  aria-label="Share on WhatsApp"
+                  onClick={e => {
+                    e.stopPropagation();
+                    const message = flashSaleWhatsAppMessage(sale.title, flashSaleShareLink(sale.id));
+                    window.open(whatsappShareUrl(message), "_blank", "noopener,noreferrer");
+                  }}
+                  className="p-1.5 rounded-full hover:bg-primary-foreground/20 transition-colors"
+                >
+                  <MessageCircle className="h-3.5 w-3.5 text-primary-foreground/90" />
+                </button>
+                <button
+                  aria-label="Dismiss"
+                  onClick={e => { e.stopPropagation(); setDismissed(d => [...d, sale.id]); }}
+                  className="p-1 rounded-full hover:bg-primary-foreground/20 transition-colors"
+                >
+                  <X className="h-3.5 w-3.5 text-primary-foreground/80" />
+                </button>
+              </div>
             </div>
           </div>
         </div>

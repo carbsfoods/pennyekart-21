@@ -20,7 +20,7 @@ import {
 import {
   TrendingUp, TrendingDown, ShoppingCart, Package, Users, Wallet,
   Store, Truck, BarChart3, AlertTriangle, CheckCircle, Search,
-  UserCheck, UserX, UserPlus, Activity
+  UserCheck, UserX, UserPlus, Activity, LogIn, Bell, BellRing, MousePointerClick, Network
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -33,11 +33,16 @@ interface Order {
 interface Product { id: string; name: string; price: number; purchase_rate: number; mrp: number; stock: number; is_active: boolean; category: string | null; }
 interface SellerProduct { id: string; name: string; price: number; purchase_rate: number; stock: number; seller_id: string; is_approved: boolean; }
 interface GodownStock { id: string; quantity: number; product_id: string; purchase_price: number; godown_id: string; }
-interface Profile { user_id: string; full_name: string | null; user_type: string; local_body_id: string | null; ward_number: number | null; created_at: string; mobile_number: string | null; }
+interface Profile { user_id: string; full_name: string | null; user_type: string; local_body_id: string | null; ward_number: number | null; created_at: string; mobile_number: string | null; last_login_at: string | null; fcm_token: string | null; }
 interface SellerWallet { seller_id: string; balance: number; }
 interface SellerWalletTxn { seller_id: string; type: string; amount: number; description: string | null; }
 interface LocalBody { id: string; name: string; district_id: string; ward_count: number; }
 interface District { id: string; name: string; }
+interface PushNotification { id: string; title: string; created_at: string; is_active: boolean | null; }
+interface PushRead { notification_id: string; user_id: string; delivered_at: string | null; read_at: string | null; clicked_at: string | null; }
+interface Community { id: string; name: string; creator_user_id: string | null; created_at: string; }
+interface CommunityMember { community_id: string; user_id: string; joined_at: string; }
+interface CommunitySummaryRow { community_id: string; community_name: string; creator_user_id: string | null; creator_name: string | null; member_count: number; order_count: number; revenue: number | string; profit: number | string; }
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--chart-2,220 70% 50%))", "hsl(var(--chart-3,160 60% 45%))", "hsl(var(--chart-4,30 80% 55%))", "hsl(var(--chart-5,280 65% 60%))"];
 
@@ -95,6 +100,11 @@ const ReportsPage = () => {
   const [districts, setDistricts] = useState<District[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchHistory, setSearchHistory] = useState<{ search_query: string; result_count: number | null; created_at: string; customer_user_id: string }[]>([]);
+  const [pushNotifications, setPushNotifications] = useState<PushNotification[]>([]);
+  const [pushReads, setPushReads] = useState<PushRead[]>([]);
+  const [communities, setCommunities] = useState<Community[]>([]);
+  const [communityMembers, setCommunityMembers] = useState<CommunityMember[]>([]);
+  const [communitySummary, setCommunitySummary] = useState<CommunitySummaryRow[]>([]);
 
   // ─── Filters ───────────────────────────────────────────────────────────────
   const [dateRange, setDateRange] = useState<string>("all");
@@ -199,18 +209,22 @@ const ReportsPage = () => {
       const [
         { data: ord }, { data: prod }, { data: sprod }, { data: gstock },
         { data: prof }, { data: sw }, { data: stxn }, { data: lb }, { data: dist },
-        { data: sh }
+        { data: sh }, { data: pn }, { data: pr }, { data: com }, { data: cm }
       ] = await Promise.all([
         supabase.from("orders").select("id,status,total,items,created_at,user_id,seller_id,assigned_delivery_staff_id,godown_id").order("created_at", { ascending: false }),
         supabase.from("products").select("id,name,price,purchase_rate,mrp,stock,is_active,category"),
         supabase.from("seller_products").select("id,name,price,purchase_rate,stock,seller_id,is_approved"),
         supabase.from("godown_stock").select("id,quantity,product_id,purchase_price,godown_id"),
-        supabase.from("profiles").select("user_id,full_name,user_type,local_body_id,ward_number,created_at,mobile_number"),
+        supabase.from("profiles").select("user_id,full_name,user_type,local_body_id,ward_number,created_at,mobile_number,last_login_at,fcm_token"),
         supabase.from("seller_wallets").select("seller_id,balance"),
         supabase.from("seller_wallet_transactions").select("seller_id,type,amount,description"),
         supabase.from("locations_local_bodies").select("id,name,district_id,ward_count"),
         supabase.from("locations_districts").select("id,name"),
         supabase.from("customer_search_history").select("search_query,result_count,created_at,customer_user_id").order("created_at", { ascending: false }),
+        supabase.from("notifications").select("id,title,created_at,is_active").order("created_at", { ascending: false }),
+        supabase.from("notification_reads").select("notification_id,user_id,delivered_at,read_at,clicked_at"),
+        supabase.from("communities").select("id,name,creator_user_id,created_at").order("created_at", { ascending: false }),
+        supabase.from("community_members").select("community_id,user_id,joined_at"),
       ]);
       setOrders((ord ?? []) as Order[]);
       setProducts((prod ?? []) as Product[]);

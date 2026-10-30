@@ -11,6 +11,7 @@ import { SITE_URL } from "@/lib/appLinks";
 import {
   buildVerificationLink,
   canSendVerificationLinkForRoles,
+  mergeLegacyRoleName,
   normalizeVerificationMobile,
   verificationWhatsAppMessage,
 } from "@/lib/accountVerification";
@@ -54,17 +55,25 @@ const VerifyAccountCard = ({ userId, profileMobile, isSuperAdmin = false }: Prop
 
   useEffect(() => {
     let cancelled = false;
-    supabase
-      .from("user_roles")
-      .select("roles(name)")
-      .eq("user_id", userId)
-      .then(({ data }) => {
-        if (cancelled) return;
-        const names = ((data ?? []) as { roles?: { name?: string } | null }[])
-          .map((r) => r?.roles?.name ?? null)
-          .filter(Boolean) as string[];
-        setRoleNames(names);
-      });
+    // Protected roles first; legacy profile role (profiles.role_id) as a
+    // fallback so coordinators added before user_roles still qualify.
+    (async () => {
+      const [{ data: assigned }, { data: profile }] = await Promise.all([
+        supabase.from("user_roles").select("roles(name)").eq("user_id", userId),
+        supabase.from("profiles").select("role_id").eq("user_id", userId).maybeSingle(),
+      ]);
+      const names = ((assigned ?? []) as { roles?: { name?: string } | null }[])
+        .map((r) => r?.roles?.name ?? null)
+        .filter(Boolean) as string[];
+      let legacyName: string | null = null;
+      const legacyRoleId = (profile as { role_id?: string | null } | null)?.role_id ?? null;
+      if (legacyRoleId) {
+        const { data: legacyRole } = await supabase.from("roles").select("name").eq("id", legacyRoleId).maybeSingle();
+        legacyName = (legacyRole as { name?: string } | null)?.name ?? null;
+      }
+      if (cancelled) return;
+      setRoleNames(mergeLegacyRoleName(names, legacyName));
+    })();
     return () => { cancelled = true; };
   }, [userId]);
 

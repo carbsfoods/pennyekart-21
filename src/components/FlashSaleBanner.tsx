@@ -115,7 +115,9 @@ const FlashSaleBanner = () => {
 
   return (
     <div className="space-y-0">
-      {visibleSales.map(sale => (
+      {visibleSales.map(sale => {
+        const isUpcoming = new Date(sale.start_time).getTime() > now;
+        return (
         <div
           key={sale.id}
           className="relative overflow-hidden cursor-pointer shadow-2xl"
@@ -154,26 +156,21 @@ const FlashSaleBanner = () => {
                       ⚡ Flash Sale
                     </span>
                   </div>
-        {(() => {
-          const isUpcoming = new Date(sale.start_time).getTime() > now;
-          return (
-            <>
-              <h3 className="text-sm md:text-lg font-black text-primary-foreground truncate uppercase tracking-wide drop-shadow leading-tight mt-0.5">
-                {sale.title}
-              </h3>
-              <p className="text-[10px] md:text-xs text-primary-foreground/90 truncate font-semibold">
-                {(saleProducts?.[sale.id] ?? 0)} products · {isUpcoming ? "Offer starts soon — tap to preview" : "Tap to shop now"} →
-              </p>
-            </>
-          );
-        })()}
+                  <h3 className="text-sm md:text-lg font-black text-primary-foreground truncate uppercase tracking-wide drop-shadow leading-tight mt-0.5">
+                    {sale.title}
+                  </h3>
+                  <p className="text-[10px] md:text-xs text-primary-foreground/90 truncate font-semibold">
+                    {(saleProducts?.[sale.id] ?? 0)} products · {isUpcoming ? "Offer starts soon — tap to preview" : "Tap to shop now"} →
+                  </p>
                 </div>
               </div>
 
               {/* Center: Countdown */}
               <div className="flex flex-col items-end gap-1 shrink-0">
-                <span className="text-[9px] md:text-[10px] font-bold text-primary-foreground/90 uppercase tracking-wider">Ends in</span>
-                <CountdownTimer endTime={sale.end_time} />
+                <span className="text-[9px] md:text-[10px] font-bold text-primary-foreground/90 uppercase tracking-wider">
+                  {isUpcoming ? "Starts in" : "Ends in"}
+                </span>
+                <CountdownTimer target={isUpcoming ? sale.start_time : sale.end_time} />
               </div>
 
               {/* Right: Dismiss */}

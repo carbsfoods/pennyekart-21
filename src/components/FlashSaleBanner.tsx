@@ -61,18 +61,26 @@ const CountdownTimer = ({ endTime }: { endTime: string }) => {
 
 const FlashSaleBanner = () => {
   const [dismissed, setDismissed] = useState<string[]>([]);
+  const [now, setNow] = useState(() => Date.now());
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Keep upcoming/live classification fresh between refetches.
+    const id = setInterval(() => setNow(Date.now()), 15000);
+    return () => clearInterval(id);
+  }, []);
 
   const { data: activeSales } = useQuery({
     queryKey: ["flash-sales-active"],
     queryFn: async () => {
-      const now = new Date().toISOString();
+      const nowIso = new Date().toISOString();
+      const oneHourLater = new Date(Date.now() + 60 * 60 * 1000).toISOString();
       const { data } = await supabase
         .from("flash_sales")
         .select("id, title, description, banner_color, start_time, end_time")
         .eq("is_active", true)
-        .lte("start_time", now)
-        .gte("end_time", now)
+        .lte("start_time", oneHourLater)
+        .gte("end_time", nowIso)
         .order("start_time");
       return (data as FlashSale[]) ?? [];
     },

@@ -21,12 +21,12 @@ interface FlashProduct {
   seller_product_id: string | null;
 }
 
-const CountdownTimer = ({ endTime }: { endTime: string }) => {
+const CountdownTimer = ({ target }: { target: string }) => {
   const [timeLeft, setTimeLeft] = useState({ h: 0, m: 0, s: 0 });
 
   useEffect(() => {
     const calc = () => {
-      const diff = Math.max(0, new Date(endTime).getTime() - Date.now());
+      const diff = Math.max(0, new Date(target).getTime() - Date.now());
       setTimeLeft({
         h: Math.floor(diff / 3600000),
         m: Math.floor((diff % 3600000) / 60000),
@@ -36,7 +36,7 @@ const CountdownTimer = ({ endTime }: { endTime: string }) => {
     calc();
     const id = setInterval(calc, 1000);
     return () => clearInterval(id);
-  }, [endTime]);
+  }, [target]);
 
   const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -61,18 +61,26 @@ const CountdownTimer = ({ endTime }: { endTime: string }) => {
 
 const FlashSaleBanner = () => {
   const [dismissed, setDismissed] = useState<string[]>([]);
+  const [now, setNow] = useState(() => Date.now());
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Keep upcoming/live classification fresh between refetches.
+    const id = setInterval(() => setNow(Date.now()), 15000);
+    return () => clearInterval(id);
+  }, []);
 
   const { data: activeSales } = useQuery({
     queryKey: ["flash-sales-active"],
     queryFn: async () => {
-      const now = new Date().toISOString();
+      const nowIso = new Date().toISOString();
+      const oneHourLater = new Date(Date.now() + 60 * 60 * 1000).toISOString();
       const { data } = await supabase
         .from("flash_sales")
         .select("id, title, description, banner_color, start_time, end_time")
         .eq("is_active", true)
-        .lte("start_time", now)
-        .gte("end_time", now)
+        .lte("start_time", oneHourLater)
+        .gte("end_time", nowIso)
         .order("start_time");
       return (data as FlashSale[]) ?? [];
     },
@@ -107,7 +115,9 @@ const FlashSaleBanner = () => {
 
   return (
     <div className="space-y-0">
-      {visibleSales.map(sale => (
+      {visibleSales.map(sale => {
+        const isUpcoming = new Date(sale.start_time).getTime() > now;
+        return (
         <div
           key={sale.id}
           className="relative overflow-hidden cursor-pointer shadow-2xl"
@@ -150,15 +160,17 @@ const FlashSaleBanner = () => {
                     {sale.title}
                   </h3>
                   <p className="text-[10px] md:text-xs text-primary-foreground/90 truncate font-semibold">
-                    {(saleProducts?.[sale.id] ?? 0)} products · Tap to shop now →
+                    {(saleProducts?.[sale.id] ?? 0)} products · {isUpcoming ? "Offer starts soon — tap to preview" : "Tap to shop now"} →
                   </p>
                 </div>
               </div>
 
               {/* Center: Countdown */}
               <div className="flex flex-col items-end gap-1 shrink-0">
-                <span className="text-[9px] md:text-[10px] font-bold text-primary-foreground/90 uppercase tracking-wider">Ends in</span>
-                <CountdownTimer endTime={sale.end_time} />
+                <span className="text-[9px] md:text-[10px] font-bold text-primary-foreground/90 uppercase tracking-wider">
+                  {isUpcoming ? "Starts in" : "Ends in"}
+                </span>
+                <CountdownTimer target={isUpcoming ? sale.start_time : sale.end_time} />
               </div>
 
               {/* Right: Dismiss */}
@@ -171,7 +183,8 @@ const FlashSaleBanner = () => {
             </div>
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 };

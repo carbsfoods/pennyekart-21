@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Zap, X } from "lucide-react";
+import { Zap, X, MessageCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
+import { whatsappShareUrl, flashSaleShareLink, flashSaleWhatsAppMessage } from "@/lib/appLinks";
 
 interface FlashSale {
   id: string;

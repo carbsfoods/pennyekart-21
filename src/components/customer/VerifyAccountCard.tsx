@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { SITE_URL } from "@/lib/appLinks";
 import {
   buildVerificationLink,
-  canSendVerificationLink,
+  canSendVerificationLinkForRoles,
   normalizeVerificationMobile,
   verificationWhatsAppMessage,
 } from "@/lib/accountVerification";

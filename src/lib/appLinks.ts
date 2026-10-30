@@ -36,7 +36,7 @@ export const flashSaleShareLink = (saleId: string): string =>
   `${SITE_URL}/flash-sale/${saleId}`;
 
 export const flashSaleWhatsAppMessage = (title: string, link: string): string =>
-  `⚡ ${title} is live on Pennyekart! Grab flash prices before it ends.\n\nTap to shop:\n${link}`;
+  `⚡ ${title} — flash prices are on at Pennyekart! Grab them before it ends.\n\nTap to shop:\n${link}`;
 
 export type LinkDevice = "app" | "mobile_browser" | "desktop";
 

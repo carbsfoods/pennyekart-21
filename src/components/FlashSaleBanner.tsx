@@ -154,12 +154,19 @@ const FlashSaleBanner = () => {
                       ⚡ Flash Sale
                     </span>
                   </div>
-                  <h3 className="text-sm md:text-lg font-black text-primary-foreground truncate uppercase tracking-wide drop-shadow leading-tight mt-0.5">
-                    {sale.title}
-                  </h3>
-                  <p className="text-[10px] md:text-xs text-primary-foreground/90 truncate font-semibold">
-                    {(saleProducts?.[sale.id] ?? 0)} products · Tap to shop now →
-                  </p>
+        {(() => {
+          const isUpcoming = new Date(sale.start_time).getTime() > now;
+          return (
+            <>
+              <h3 className="text-sm md:text-lg font-black text-primary-foreground truncate uppercase tracking-wide drop-shadow leading-tight mt-0.5">
+                {sale.title}
+              </h3>
+              <p className="text-[10px] md:text-xs text-primary-foreground/90 truncate font-semibold">
+                {(saleProducts?.[sale.id] ?? 0)} products · {isUpcoming ? "Offer starts soon — tap to preview" : "Tap to shop now"} →
+              </p>
+            </>
+          );
+        })()}
                 </div>
               </div>
 

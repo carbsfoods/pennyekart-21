@@ -524,6 +524,129 @@ const ReportsPage = () => {
     };
   }, [profiles, orders, custInactiveDays, filterDistrict, filterLocalBody, filterWard, localBodyIdsForDistrict, dateFrom, dateTo, lbMap]);
 
+  // ─── Customer Login Analytics ──────────────────────────────────────────────
+  const loginAnalytics = useMemo(() => {
+    const now = new Date();
+    const customers = profiles.filter(p => p.user_type === "customer");
+    let rows = customers.map(c => {
+      const days = c.last_login_at ? differenceInDays(now, new Date(c.last_login_at)) : null;
+      return {
+        userId: c.user_id, name: c.full_name || "Unknown", mobile: c.mobile_number || null,
+        localBodyId: c.local_body_id, wardNumber: c.ward_number,
+        lastLogin: c.last_login_at, joinedAt: c.created_at || "", daysSinceLogin: days,
+      };
+    });
+    if (filterDistrict !== "all" || filterLocalBody !== "all" || filterWard !== "all") {
+      rows = rows.filter(c => {
+        if (filterLocalBody !== "all") {
+          if (c.localBodyId !== filterLocalBody) return false;
+          if (filterWard !== "all" && c.wardNumber !== Number(filterWard)) return false;
+        } else if (filterDistrict !== "all") {
+          if (!c.localBodyId || !localBodyIdsForDistrict?.has(c.localBodyId)) return false;
+        }
+        return true;
+      });
+    }
+    if (dateFrom && dateTo) {
+      rows = rows.filter(c => {
+        const joined = c.joinedAt ? isWithinInterval(new Date(c.joinedAt), { start: startOfDay(dateFrom), end: endOfDay(dateTo) }) : false;
+        const login = c.lastLogin ? isWithinInterval(new Date(c.lastLogin), { start: startOfDay(dateFrom), end: endOfDay(dateTo) }) : false;
+        return joined || login;
+      });
+    }
+    const loggedInToday = rows.filter(c => c.daysSinceLogin === 0);
+    const loggedIn7 = rows.filter(c => c.daysSinceLogin !== null && c.daysSinceLogin <= 7);
+    const loggedIn30 = rows.filter(c => c.daysSinceLogin !== null && c.daysSinceLogin <= 30);
+    const neverLoggedIn = rows.filter(c => c.daysSinceLogin === null);
+    const recencyDist = [
+      { name: "Today", value: loggedInToday.length },
+      { name: "1–7 days", value: rows.filter(c => c.daysSinceLogin !== null && c.daysSinceLogin >= 1 && c.daysSinceLogin <= 7).length },
+      { name: "8–30 days", value: rows.filter(c => c.daysSinceLogin !== null && c.daysSinceLogin > 7 && c.daysSinceLogin <= 30).length },
+      { name: "31+ days", value: rows.filter(c => c.daysSinceLogin !== null && c.daysSinceLogin > 30).length },
+      { name: "Never", value: neverLoggedIn.length },
+    ];
+    return { filtered: rows, loggedInToday, loggedIn7, loggedIn30, neverLoggedIn, recencyDist };
+  }, [profiles, filterDistrict, filterLocalBody, filterWard, localBodyIdsForDistrict, dateFrom, dateTo]);
+
+  // ─── Push Notification Analytics ───────────────────────────────────────────
+  const pushAnalytics = useMemo(() => {
+    const customers = profiles.filter(p => p.user_type === "customer");
+    const inLocation = (c: typeof customers[number]) => {
+      if (filterLocalBody !== "all") {
+        if (c.local_body_id !== filterLocalBody) return false;
+        if (filterWard !== "all" && c.ward_number !== Number(filterWard)) return false;
+        return true;
+      }
+      if (filterDistrict !== "all") return !!c.local_body_id && !!localBodyIdsForDistrict?.has(c.local_body_id);
+      return true;
+    };
+    const scoped = customers.filter(inLocation);
+    const scopedIds = new Set(scoped.map(c => c.user_id));
+    const notifInRange = pushNotifications.filter(n => {
+      if (dateFrom && dateTo) return isWithinInterval(new Date(n.created_at), { start: startOfDay(dateFrom), end: endOfDay(dateTo) });
+      return true;
+    });
+    const notifIds = new Set(notifInRange.map(n => n.id));
+    const reads = pushReads.filter(r => notifIds.has(r.notification_id) && scopedIds.has(r.user_id));
+    const delivered = reads.filter(r => r.delivered_at).length;
+    const read = reads.filter(r => r.read_at).length;
+    const clicked = reads.filter(r => r.clicked_at).length;
+    const registered = scoped.filter(c => c.fcm_token).map(c => ({
+      userId: c.user_id, name: c.full_name || "Unknown", mobile: c.mobile_number || null, lastLogin: c.last_login_at,
+    }));
+
+    const perCustomer = new Map<string, { name: string; mobile: string | null; delivered: number; read: number; clicked: number; lastClick: string | null }>();
+    reads.forEach(r => {
+      const p = profileMap[r.user_id];
+      const rec = perCustomer.get(r.user_id) || { name: p?.full_name || "Customer", mobile: p?.mobile_number || null, delivered: 0, read: 0, clicked: 0, lastClick: null as string | null };
+      if (r.delivered_at) rec.delivered++;
+      if (r.read_at) rec.read++;
+      if (r.clicked_at) { rec.clicked++; if (!rec.lastClick || r.clicked_at > rec.lastClick) rec.lastClick = r.clicked_at; }
+      perCustomer.set(r.user_id, rec);
+    });
+    const customerRows = [...perCustomer.values()].sort((a, b) => b.clicked - a.clicked || b.delivered - a.delivered);
+
+    const perNotif = notifInRange.map(n => {
+      const rs = reads.filter(r => r.notification_id === n.id);
+      return { id: n.id, title: n.title, createdAt: n.created_at, delivered: rs.filter(r => r.delivered_at).length, read: rs.filter(r => r.read_at).length, clicked: rs.filter(r => r.clicked_at).length };
+    }).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+    return { registered, delivered, read, clicked, customerRows, perNotif };
+  }, [profiles, pushNotifications, pushReads, filterDistrict, filterLocalBody, filterWard, localBodyIdsForDistrict, dateFrom, dateTo, profileMap]);
+
+  // ─── Community Analytics ───────────────────────────────────────────────────
+  useEffect(() => {
+    const from = dateFrom ? format(startOfDay(dateFrom), "yyyy-MM-dd") : format(subDays(new Date(), 30), "yyyy-MM-dd");
+    const to = dateTo ? format(endOfDay(dateTo), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
+    supabase.rpc("get_community_revenue_summary", { _from: from, _to: to }).then(({ data, error }) => {
+      if (error) console.error("community summary:", error.message);
+      setCommunitySummary((data ?? []) as CommunitySummaryRow[]);
+    });
+  }, [dateFrom, dateTo]);
+
+  const communityAnalytics = useMemo(() => {
+    const membersByCommunity: Record<string, number> = {};
+    communityMembers.forEach(m => { membersByCommunity[m.community_id] = (membersByCommunity[m.community_id] || 0) + 1; });
+    const rows = communities.map(c => {
+      const s = communitySummary.find(x => x.community_id === c.id);
+      return {
+        id: c.id,
+        name: c.name,
+        creator: s?.creator_name || (c.creator_user_id ? profileMap[c.creator_user_id]?.full_name || "—" : "—"),
+        members: membersByCommunity[c.id] || 0,
+        orders: Number(s?.order_count || 0),
+        revenue: Number(s?.revenue || 0),
+        profit: Number(s?.profit || 0),
+      };
+    });
+    return {
+      rows,
+      activeCommunities: rows.filter(r => r.orders > 0).length,
+      revenue: rows.reduce((sum, r) => sum + r.revenue, 0),
+      profit: rows.reduce((sum, r) => sum + r.profit, 0),
+    };
+  }, [communities, communityMembers, communitySummary, profileMap]);
+
   // ─── Click-to-open detail popups ───────────────────────────────────────────
   const cardClick = (title: string, build: () => ReactNode) => {
     const open = () => setDetail({ title, body: build() });
@@ -784,6 +907,73 @@ const ReportsPage = () => {
       />
     );
   };
+
+  const loginTable = (bucket: string) => {
+    const list = bucket === "today" ? loginAnalytics.loggedInToday
+      : bucket === "7d" ? loginAnalytics.loggedIn7
+      : bucket === "30d" ? loginAnalytics.loggedIn30
+      : bucket === "never" ? loginAnalytics.neverLoggedIn
+      : loginAnalytics.filtered;
+    return (
+      <>
+        <Summary>{list.length} customers</Summary>
+        <DetailTable
+          cols={[{ label: "Customer" }, { label: "Mobile" }, { label: "Joined" }, { label: "Last Login" }, { label: "Days Since Login", right: true }]}
+          rows={list.slice(0, 500).map(c => [
+            c.name, c.mobile || "—",
+            c.joinedAt ? format(new Date(c.joinedAt), "dd MMM yy") : "—",
+            c.lastLogin ? new Date(c.lastLogin).toLocaleString("en-IN") : "Never",
+            c.daysSinceLogin !== null ? `${c.daysSinceLogin}d` : "—",
+          ])}
+          empty="No customers found"
+        />
+      </>
+    );
+  };
+
+  const pushRegisteredTable = () => (
+    <>
+      <Summary>{pushAnalytics.registered.length} customers have push notifications enabled</Summary>
+      <DetailTable
+        cols={[{ label: "Customer" }, { label: "Mobile" }, { label: "Last Login" }]}
+        rows={pushAnalytics.registered.slice(0, 500).map(c => [c.name, c.mobile || "—", c.lastLogin ? new Date(c.lastLogin).toLocaleString("en-IN") : "Never"])}
+        empty="No push-registered customers"
+      />
+    </>
+  );
+
+  const pushCustomerTable = () => (
+    <>
+      <Summary>Push delivery, read and click counts per customer (current filters applied)</Summary>
+      <DetailTable
+        cols={[{ label: "Customer" }, { label: "Mobile" }, { label: "Delivered", right: true }, { label: "Read", right: true }, { label: "Clicked", right: true }, { label: "Last Click" }]}
+        rows={pushAnalytics.customerRows.slice(0, 500).map(c => [c.name, c.mobile || "—", c.delivered, c.read, c.clicked, c.lastClick ? new Date(c.lastClick).toLocaleString("en-IN") : "—"])}
+        empty="No push activity in this period"
+      />
+    </>
+  );
+
+  const pushNotificationTable = () => (
+    <>
+      <Summary>{pushAnalytics.perNotif.length} notifications sent in this period</Summary>
+      <DetailTable
+        cols={[{ label: "Notification" }, { label: "Sent" }, { label: "Delivered", right: true }, { label: "Read", right: true }, { label: "Clicked", right: true }]}
+        rows={pushAnalytics.perNotif.map(n => [n.title, format(new Date(n.createdAt), "dd MMM yy HH:mm"), n.delivered, n.read, n.clicked])}
+        empty="No notifications in this period"
+      />
+    </>
+  );
+
+  const communityTable = () => (
+    <>
+      <Summary>{communityAnalytics.rows.length} communities · {communityMembers.length} members all-time</Summary>
+      <DetailTable
+        cols={[{ label: "Community" }, { label: "Creator" }, { label: "Members", right: true }, { label: "Orders", right: true }, { label: "Revenue", right: true }, { label: "Profit", right: true }]}
+        rows={communityAnalytics.rows.slice().sort((a, b) => b.revenue - a.revenue).map(r => [r.name, r.creator, r.members, r.orders, r.revenue > 0 ? fmt(r.revenue) : "—", r.profit > 0 ? fmt(r.profit) : "—"])}
+        empty="No communities yet"
+      />
+    </>
+  );
 
   const statusOrdersTable = () => {
     const m: Record<string, number> = {};
@@ -1655,6 +1845,113 @@ const ReportsPage = () => {
                   <p className="text-xs text-muted-foreground text-center mt-2">Showing first 100 of {customerAnalytics.filtered.length} customers</p>
                 )}
               </div>
+            </CardContent>
+          </Card>
+
+          {/* ─── Customer Login Analytics ─── */}
+          <h3 className="text-sm font-semibold text-muted-foreground pt-2">Customer Login Analytics</h3>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard label="Logged In Today" value={String(loginAnalytics.loggedInToday.length)} icon={LogIn} sub={`${pct(loginAnalytics.loggedInToday.length, loginAnalytics.filtered.length)} of customers`} {...cardClick("Logged In Today", () => loginTable("today"))} />
+            <StatCard label="Logged In (7d)" value={String(loginAnalytics.loggedIn7.length)} icon={LogIn} sub={pct(loginAnalytics.loggedIn7.length, loginAnalytics.filtered.length)} color="text-green-600" {...cardClick("Logged In (7 days)", () => loginTable("7d"))} />
+            <StatCard label="Logged In (30d)" value={String(loginAnalytics.loggedIn30.length)} icon={LogIn} sub={pct(loginAnalytics.loggedIn30.length, loginAnalytics.filtered.length)} color="text-emerald-600" {...cardClick("Logged In (30 days)", () => loginTable("30d"))} />
+            <StatCard label="Never Logged In" value={String(loginAnalytics.neverLoggedIn.length)} icon={UserX} sub={pct(loginAnalytics.neverLoggedIn.length, loginAnalytics.filtered.length)} color="text-destructive" {...cardClick("Never Logged In", () => loginTable("never"))} />
+          </div>
+          <Card {...cardClick("Login Recency Breakdown", () => loginTable("all"))}>
+            <CardHeader><CardTitle className="text-base">Last Login Recency</CardTitle></CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={loginAnalytics.recencyDist}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="name" className="text-xs" />
+                  <YAxis className="text-xs" allowDecimals={false} />
+                  <Tooltip />
+                  <Bar dataKey="value" name="Customers" fill="hsl(var(--primary))" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* ─── Push Notification Analytics ─── */}
+          <h3 className="text-sm font-semibold text-muted-foreground pt-2">Push Notification Analytics</h3>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard label="Push Registered (FCM)" value={String(pushAnalytics.registered.length)} icon={Bell} sub={`${pct(pushAnalytics.registered.length, loginAnalytics.filtered.length)} of customers`} {...cardClick("Push Registered", () => pushRegisteredTable())} />
+            <StatCard label="Push Delivered" value={String(pushAnalytics.delivered)} icon={BellRing} sub={`${pushAnalytics.perNotif.length} notifications in range`} {...cardClick("Push Delivery by Customer", () => pushCustomerTable())} />
+            <StatCard label="Push Read" value={String(pushAnalytics.read)} icon={CheckCircle} sub={pct(pushAnalytics.read, pushAnalytics.delivered)} color="text-green-600" {...cardClick("Push Reads by Customer", () => pushCustomerTable())} />
+            <StatCard label="Push Clicked" value={String(pushAnalytics.clicked)} icon={MousePointerClick} sub={pct(pushAnalytics.clicked, pushAnalytics.delivered)} color="text-blue-500" {...cardClick("Push Clicks by Customer", () => pushCustomerTable())} />
+          </div>
+          <Card {...cardClick("Push Performance by Notification", () => pushNotificationTable())}>
+            <CardHeader><CardTitle className="text-base">Push Performance by Notification</CardTitle></CardHeader>
+            <CardContent>
+              {pushAnalytics.perNotif.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">No notifications in this period</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Notification</TableHead>
+                      <TableHead>Sent</TableHead>
+                      <TableHead className="text-right">Delivered</TableHead>
+                      <TableHead className="text-right">Read</TableHead>
+                      <TableHead className="text-right">Clicked</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pushAnalytics.perNotif.slice(0, 15).map(n => (
+                      <TableRow key={n.id}>
+                        <TableCell className="font-medium max-w-[220px] truncate">{n.title}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{format(new Date(n.createdAt), "dd MMM yy HH:mm")}</TableCell>
+                        <TableCell className="text-right">{n.delivered}</TableCell>
+                        <TableCell className="text-right">{n.read}</TableCell>
+                        <TableCell className="text-right">{n.clicked}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ─── Community Analytics ─── */}
+          <h3 className="text-sm font-semibold text-muted-foreground pt-2">Community Analytics</h3>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard label="Total Communities" value={String(communities.length)} icon={Network} {...cardClick("Communities", () => communityTable())} />
+            <StatCard label="Community Members" value={String(communityMembers.length)} icon={Users} sub={`across ${communities.length} communities`} {...cardClick("Community Members", () => communityTable())} />
+            <StatCard label="Active Communities" value={String(communityAnalytics.activeCommunities)} icon={Activity} sub="with orders in this period" {...cardClick("Active Communities", () => communityTable())} />
+            <StatCard label="Community Revenue" value={fmt(communityAnalytics.revenue)} icon={TrendingUp} sub={`profit ${fmt(communityAnalytics.profit)}`} color="text-green-600" {...cardClick("Community Performance", () => communityTable())} />
+          </div>
+          <Card {...cardClick("Community Performance", () => communityTable())}>
+            <CardHeader><CardTitle className="text-base">Community Performance (period revenue)</CardTitle></CardHeader>
+            <CardContent>
+              {communityAnalytics.rows.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">No communities yet</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Community</TableHead>
+                        <TableHead>Creator</TableHead>
+                        <TableHead className="text-right">Members</TableHead>
+                        <TableHead className="text-right">Orders</TableHead>
+                        <TableHead className="text-right">Revenue</TableHead>
+                        <TableHead className="text-right">Profit</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {communityAnalytics.rows.slice().sort((a, b) => b.revenue - a.revenue).map(r => (
+                        <TableRow key={r.id}>
+                          <TableCell className="font-medium">{r.name}</TableCell>
+                          <TableCell className="text-xs">{r.creator}</TableCell>
+                          <TableCell className="text-right">{r.members}</TableCell>
+                          <TableCell className="text-right">{r.orders}</TableCell>
+                          <TableCell className="text-right font-semibold">{r.revenue > 0 ? fmt(r.revenue) : "—"}</TableCell>
+                          <TableCell className="text-right">{r.profit > 0 ? fmt(r.profit) : "—"}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

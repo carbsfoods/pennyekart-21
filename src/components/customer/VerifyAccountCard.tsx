@@ -33,7 +33,7 @@ const VerifyAccountCard = ({ userId, profileMobile, isSuperAdmin = false }: Prop
   const [mismatch, setMismatch] = useState(false);
 
   // WhatsApp verification link option (super admin, team leader, coordinator)
-  const [roleName, setRoleName] = useState<string | null>(null);
+  const [roleNames, setRoleNames] = useState<string[]>([]);
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkMobile, setLinkMobile] = useState("");
   const [linkBusy, setLinkBusy] = useState(false);
@@ -63,7 +63,7 @@ const VerifyAccountCard = ({ userId, profileMobile, isSuperAdmin = false }: Prop
         const names = ((data ?? []) as { roles?: { name?: string } | null }[])
           .map((r) => r?.roles?.name ?? null)
           .filter(Boolean) as string[];
-        setRoleName(names[0] ?? null);
+        setRoleNames(names);
       });
     return () => { cancelled = true; };
   }, [userId]);
@@ -71,7 +71,7 @@ const VerifyAccountCard = ({ userId, profileMobile, isSuperAdmin = false }: Prop
   const digitsOnly = (v: string) => v.replace(/\D/g, "");
   const normalize = (v: string | null) => (v ? digitsOnly(v).slice(-10) : "");
 
-  const canSend = canSendVerificationLink(isSuperAdmin, roleName);
+  const canSend = canSendVerificationLinkForRoles(isSuperAdmin, roleNames);
 
   const openSelfVerify = () => {
     setMobile("");

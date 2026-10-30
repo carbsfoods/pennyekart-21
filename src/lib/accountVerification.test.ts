@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildVerificationLink,
   canSendVerificationLink,
+  canSendVerificationLinkForRoles,
   normalizeVerificationMobile,
   verificationWhatsAppMessage,
 } from "./accountVerification";
@@ -28,6 +29,17 @@ describe("verification link sender eligibility", () => {
   it("always allows a super admin", () => {
     expect(canSendVerificationLink(true, null)).toBe(true);
     expect(canSendVerificationLink(true, "pro")).toBe(true);
+  });
+
+  it("allows a coordinator even with several roles attached", () => {
+    expect(canSendVerificationLinkForRoles(false, ["coordinator"])).toBe(true);
+    expect(canSendVerificationLinkForRoles(false, ["pro", "coordinator"])).toBe(true);
+    expect(canSendVerificationLinkForRoles(false, ["Team Leader", "pro"])).toBe(true);
+  });
+
+  it("rejects members whose roles are all outside the allowed list", () => {
+    expect(canSendVerificationLinkForRoles(false, ["pro", "group leader"])).toBe(false);
+    expect(canSendVerificationLinkForRoles(false, [])).toBe(false);
   });
 });
 

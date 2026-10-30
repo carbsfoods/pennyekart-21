@@ -12,6 +12,12 @@ export const canSendVerificationLink = (
   isSuperAdmin ||
   VERIFICATION_LINK_ROLES.some((r) => r === roleName?.trim().toLowerCase());
 
+// A member may hold several roles; any allowed role grants the option.
+export const canSendVerificationLinkForRoles = (
+  isSuperAdmin: boolean,
+  roleNames: readonly (string | null | undefined)[],
+): boolean => roleNames.some((n) => canSendVerificationLink(false, n)) || isSuperAdmin;
+
 export const normalizeVerificationMobile = (v: string | null | undefined): string =>
   (v ?? "").replace(/\D/g, "").slice(-10);
 

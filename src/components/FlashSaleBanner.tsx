@@ -65,6 +65,7 @@ const FlashSaleBanner = () => {
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [now, setNow] = useState(() => Date.now());
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
     // Keep upcoming/live classification fresh between refetches.
@@ -124,7 +125,14 @@ const FlashSaleBanner = () => {
           key={sale.id}
           className="relative overflow-hidden cursor-pointer shadow-2xl"
           style={{ background: `linear-gradient(120deg, ${sale.banner_color} 0%, ${sale.banner_color}ee 40%, ${sale.banner_color}bb 70%, ${sale.banner_color} 100%)` }}
-          onClick={() => navigate(`/flash-sale/${sale.id}`)}
+          onClick={() => {
+            // Never open the flash sale page before the offer starts.
+            if (isUpcoming) {
+              toast({ title: "Flash sale starts soon", description: "The offer page opens once the sale begins." });
+              return;
+            }
+            navigate(`/flash-sale/${sale.id}`);
+          }}
         >
           {/* Animated shimmer sweep */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">

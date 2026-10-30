@@ -253,6 +253,7 @@ const FlashSaleManager = () => {
 
       {sales.map(sale => {
         const status = getStatus(sale);
+        const countdown = getCountdown(sale);
         const items = saleProducts[sale.id] || [];
         return (
           <Card key={sale.id} className="border-l-4" style={{ borderLeftColor: sale.banner_color }}>
@@ -263,6 +264,12 @@ const FlashSaleManager = () => {
                   <CardTitle className="text-base">{sale.title}</CardTitle>
                   <Badge variant={status.variant}>{status.label}</Badge>
                   <Badge variant="secondary">{items.length} products</Badge>
+                  {countdown && (
+                    <Badge variant="outline" className="font-mono tabular-nums gap-1">
+                      <Clock className="h-3 w-3" />
+                      {countdown.label} {countdown.value}
+                    </Badge>
+                  )}
                 </div>
                 <div className="flex items-center gap-1">
                   {canEdit && (

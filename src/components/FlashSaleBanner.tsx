@@ -36,7 +36,7 @@ const CountdownTimer = ({ target }: { target: string }) => {
     calc();
     const id = setInterval(calc, 1000);
     return () => clearInterval(id);
-  }, [endTime]);
+  }, [target]);
 
   const pad = (n: number) => String(n).padStart(2, "0");
 

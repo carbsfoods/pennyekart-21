@@ -18,6 +18,16 @@ export const canSendVerificationLinkForRoles = (
   roleNames: readonly (string | null | undefined)[],
 ): boolean => roleNames.some((n) => canSendVerificationLink(false, n)) || isSuperAdmin;
 
+// Legacy fallback: a role may live only on profiles.role_id (no user_roles
+// row); merge it into the assigned role names before the allow-list check.
+export const mergeLegacyRoleName = (
+  roleNames: readonly string[],
+  legacyRoleName: string | null | undefined,
+): string[] =>
+  legacyRoleName?.trim()
+    ? Array.from(new Set([...roleNames, legacyRoleName.trim()]))
+    : [...roleNames];
+
 export const normalizeVerificationMobile = (v: string | null | undefined): string =>
   (v ?? "").replace(/\D/g, "").slice(-10);
 

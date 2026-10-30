@@ -54,9 +54,15 @@ const FlashSaleManager = () => {
   const [search, setSearch] = useState("");
   const [allProducts, setAllProducts] = useState<ProductOption[]>([]);
   const [form, setForm] = useState({ title: "", description: "", banner_color: "#ef4444", start_time: "", end_time: "", discount_type: "percentage", discount_value: "" });
+  const [now, setNow] = useState(() => new Date());
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
   const canEdit = hasPermission("update_products");
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const fetchSales = async () => {
     const { data } = await supabase.from("flash_sales").select("*").order("created_at", { ascending: false });
@@ -196,13 +202,33 @@ const FlashSaleManager = () => {
   };
 
   const getStatus = (sale: FlashSale) => {
-    const now = new Date();
+    const nowDate = now;
     const start = new Date(sale.start_time);
     const end = new Date(sale.end_time);
     if (!sale.is_active) return { label: "Inactive", variant: "secondary" as const };
-    if (now < start) return { label: "Scheduled", variant: "outline" as const };
-    if (now >= start && now <= end) return { label: "LIVE", variant: "destructive" as const };
+    if (nowDate < start) return { label: "Scheduled", variant: "outline" as const };
+    if (nowDate >= start && nowDate <= end) return { label: "LIVE", variant: "destructive" as const };
     return { label: "Ended", variant: "secondary" as const };
+  };
+
+  const formatCountdown = (ms: number) => {
+    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const hms = `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+    return days > 0 ? `${days}d ${hms}` : hms;
+  };
+
+  const getCountdown = (sale: FlashSale) => {
+    const start = new Date(sale.start_time);
+    const end = new Date(sale.end_time);
+    if (!sale.is_active) return null;
+    if (now < start) return { label: "Starts in", value: formatCountdown(start.getTime() - now.getTime()) };
+    if (now <= end) return { label: "Ends in", value: formatCountdown(end.getTime() - now.getTime()) };
+    return null;
   };
 
   const filteredProducts = allProducts.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
@@ -227,6 +253,7 @@ const FlashSaleManager = () => {
 
       {sales.map(sale => {
         const status = getStatus(sale);
+        const countdown = getCountdown(sale);
         const items = saleProducts[sale.id] || [];
         return (
           <Card key={sale.id} className="border-l-4" style={{ borderLeftColor: sale.banner_color }}>
@@ -237,6 +264,12 @@ const FlashSaleManager = () => {
                   <CardTitle className="text-base">{sale.title}</CardTitle>
                   <Badge variant={status.variant}>{status.label}</Badge>
                   <Badge variant="secondary">{items.length} products</Badge>
+                  {countdown && (
+                    <Badge variant="outline" className="font-mono tabular-nums gap-1">
+                      <Clock className="h-3 w-3" />
+                      {countdown.label} {countdown.value}
+                    </Badge>
+                  )}
                 </div>
                 <div className="flex items-center gap-1">
                   {canEdit && (

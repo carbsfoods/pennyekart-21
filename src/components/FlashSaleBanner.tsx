@@ -21,7 +21,7 @@ interface FlashProduct {
   seller_product_id: string | null;
 }
 
-const CountdownTimer = ({ endTime }: { endTime: string }) => {
+const CountdownTimer = ({ target }: { target: string }) => {
   const [timeLeft, setTimeLeft] = useState({ h: 0, m: 0, s: 0 });
 
   useEffect(() => {

@@ -72,3 +72,14 @@ export const payoutReviewActions = (status: string): ("verify" | "approve" | "re
   if (status === "verified") return ["approve", "reject"];
   return [];
 };
+
+/** A revision of an already-allocated commission rounds the new amount and returns
+ * the wallet adjustment (credit when positive, debit when negative). Returns null
+ * for zero, negative, unchanged or invalid revisions. */
+export const reviseCommissionChange = (current: number, next: number): { amount: number; delta: number } | null => {
+  const amount = round2(Number(next));
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  const delta = round2(amount - Number(current));
+  if (delta === 0) return null;
+  return { amount, delta };
+};

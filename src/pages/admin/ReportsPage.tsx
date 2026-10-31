@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState, type ReactNode, type KeyboardEvent } from "react";
 import { format, subDays, subMonths, startOfDay, endOfDay, isWithinInterval, differenceInDays } from "date-fns";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { CalendarIcon, Filter } from "lucide-react";
+import { CalendarIcon, Filter, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -86,6 +87,24 @@ const DetailTable = ({ cols, rows, empty = "Nothing to show" }: { cols: Col[]; r
     </>
   );
 const Summary = ({ children }: { children: ReactNode }) => <p className="mb-3 text-sm text-muted-foreground">{children}</p>;
+
+const CollapsibleSection = ({ title, sub, defaultOpen, children }: { title: string; sub?: string; defaultOpen?: boolean; children: ReactNode }) => {
+  const [open, setOpen] = useState(defaultOpen ?? false);
+  return (
+    <Collapsible open={open} onOpenChange={setOpen} className="space-y-2">
+      <CollapsibleTrigger asChild>
+        <button type="button" className="flex w-full items-center gap-2 rounded-lg border bg-card px-4 py-3 text-left shadow-sm transition-colors hover:bg-accent/50">
+          <span className="text-sm font-semibold">{title}</span>
+          {sub && <span className="ml-auto hidden text-xs text-muted-foreground sm:inline">{sub}</span>}
+          <ChevronDown className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-180", !sub && "ml-auto")} />
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="space-y-4 pt-1">
+        {children}
+      </CollapsibleContent>
+    </Collapsible>
+  );
+};
 
 const ReportsPage = () => {
   const [detail, setDetail] = useState<{ title: string; body: ReactNode } | null>(null);
@@ -1167,6 +1186,7 @@ const ReportsPage = () => {
           <TabsTrigger value="geography">Geography</TabsTrigger>
           <TabsTrigger value="search">Search</TabsTrigger>
           <TabsTrigger value="customers">Customers</TabsTrigger>
+          <TabsTrigger value="community">Community</TabsTrigger>
         </TabsList>
 
         {/* ── OVERVIEW ── */}
@@ -1694,7 +1714,8 @@ const ReportsPage = () => {
         </TabsContent>
 
         {/* ── CUSTOMERS ── */}
-        <TabsContent value="customers" className="space-y-6">
+        <TabsContent value="customers" className="space-y-4">
+          <CollapsibleSection title="Customer Overview" sub="Totals, activity & charts" defaultOpen>
           <div className="flex flex-wrap items-center gap-3 mb-2">
             <span className="text-sm font-medium text-muted-foreground">Inactive threshold:</span>
             <Select value={String(custInactiveDays)} onValueChange={v => setCustInactiveDays(Number(v))}>
@@ -1773,6 +1794,9 @@ const ReportsPage = () => {
             </Card>
           </div>
 
+          </CollapsibleSection>
+
+          <CollapsibleSection title="Top 10 Customers by Spending" sub="Highest spend in this period">
           {/* Top Spenders */}
           <Card {...cardClick("Customers by Spending", () => customersTable([...customerAnalytics.filtered].sort((a, b) => b.totalSpent - a.totalSpent)))}>
             <CardHeader><CardTitle className="text-base">Top 10 Customers by Spending</CardTitle></CardHeader>
@@ -1816,6 +1840,9 @@ const ReportsPage = () => {
             </CardContent>
           </Card>
 
+          </CollapsibleSection>
+
+          <CollapsibleSection title="All Customers" sub={String(customerAnalytics.filtered.length)}>
           {/* Full Customer List */}
           <Card {...cardClick("All Customers", () => customersTable(customerAnalytics.filtered))}>
             <CardHeader><CardTitle className="text-base">All Customers ({customerAnalytics.filtered.length})</CardTitle></CardHeader>
@@ -1862,8 +1889,9 @@ const ReportsPage = () => {
             </CardContent>
           </Card>
 
-          {/* ─── Customer Login Analytics ─── */}
-          <h3 className="text-sm font-semibold text-muted-foreground pt-2">Customer Login Analytics</h3>
+          </CollapsibleSection>
+
+          <CollapsibleSection title="Customer Login Analytics" sub="Login recency & engagement">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard label="Logged In Today" value={String(loginAnalytics.loggedInToday.length)} icon={LogIn} sub={`${pct(loginAnalytics.loggedInToday.length, loginAnalytics.filtered.length)} of customers`} {...cardClick("Logged In Today", () => loginTable("today"))} />
             <StatCard label="Logged In (7d)" value={String(loginAnalytics.loggedIn7.length)} icon={LogIn} sub={pct(loginAnalytics.loggedIn7.length, loginAnalytics.filtered.length)} color="text-green-600" {...cardClick("Logged In (7 days)", () => loginTable("7d"))} />
@@ -1885,8 +1913,9 @@ const ReportsPage = () => {
             </CardContent>
           </Card>
 
-          {/* ─── Push Notification Analytics ─── */}
-          <h3 className="text-sm font-semibold text-muted-foreground pt-2">Push Notification Analytics</h3>
+          </CollapsibleSection>
+
+          <CollapsibleSection title="Push Notification Analytics" sub="FCM delivery, reads & clicks">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard label="Push Registered (FCM)" value={String(pushAnalytics.registered.length)} icon={Bell} sub={`${pct(pushAnalytics.registered.length, loginAnalytics.filtered.length)} of customers`} {...cardClick("Push Registered", () => pushRegisteredTable())} />
             <StatCard label="Push Delivered" value={String(pushAnalytics.delivered)} icon={BellRing} sub={`${pushAnalytics.perNotif.length} notifications in range`} {...cardClick("Push Delivery by Customer", () => pushCustomerTable())} />
@@ -1925,8 +1954,10 @@ const ReportsPage = () => {
             </CardContent>
           </Card>
 
-          {/* ─── Community Analytics ─── */}
-          <h3 className="text-sm font-semibold text-muted-foreground pt-2">Community Analytics</h3>
+          </CollapsibleSection>
+        </TabsContent>
+
+        <TabsContent value="community" className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard label="Total Communities" value={String(communities.length)} icon={Network} {...cardClick("Communities", () => communityTable())} />
             <StatCard label="Community Members" value={String(communityMembers.length)} icon={Users} sub={`across ${communities.length} communities`} {...cardClick("Community Members", () => communityTable())} />

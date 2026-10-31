@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.revise_commission_allocation(uuid, numeric) FROM anon

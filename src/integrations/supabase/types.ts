@@ -3199,6 +3199,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      revise_commission_allocation: {
+        Args: { _id: string; _new_amount: number }
+        Returns: number
+      }
       save_commission_allocation_rows: {
         Args: { _from: string; _rows: Json; _to: string }
         Returns: number

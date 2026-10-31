@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { commissionRateForRole, type CommissionRule } from "@/lib/communityCommission";
-import { commissionAmount, commissionDate, commissionRange } from "@/lib/commissionPayout";
+import { commissionAmount, commissionDate, commissionRange, reviseCommissionChange } from "@/lib/commissionPayout";
 import { buildGroupLeaderRows, buildHierarchyRows, groupAllocationRows, rateRoleName, type AreaCommunity, type PayoutRow } from "@/lib/commissionAllocation";
 import { isAllocationRole, normalizeRoleName, type AllocationPerson } from "@/lib/elifeAllocation";
 import { Button } from "@/components/ui/button";

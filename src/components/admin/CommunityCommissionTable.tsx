@@ -124,6 +124,18 @@ export default function CommunityCommissionTable({ roles = [], rules, fallbackRa
     toast.success("Sales commission credited to wallet");
     setConfirm(null); await load();
   };
+  /** Change an already-allocated commission: the database adjusts the wallet by the difference. */
+  const applyRevise = async () => {
+    if (!revise) return;
+    const change = reviseCommissionChange(Number(revise.amount), Number(reviseValue));
+    if (!change) return toast.error("Enter a new amount different from the allocated one");
+    setBusy(true);
+    const { error } = await db.rpc("revise_commission_allocation", { _id: revise.id, _new_amount: change.amount });
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("Commission revised and the wallet was adjusted");
+    setRevise(null); await load();
+  };
 
   /** One row per community: creator + hierarchy allocations of the same period stay together. */
   const groups = groupAllocationRows(rows).filter(g => {
@@ -158,6 +170,12 @@ export default function CommunityCommissionTable({ roles = [], rules, fallbackRa
           <Button size="sm" variant="outline" disabled={busy || !(amount > 0)} onClick={() => void verify(r)}><CheckCircle2 className="mr-1 h-4 w-4" />Verify</Button>
           <Button size="sm" disabled={busy || r.status !== "verified" || !r.customer_user_id || edits[r.id] !== undefined} onClick={() => setConfirm(r)}><Wallet className="mr-1 h-4 w-4" />Allocate</Button>
         </>}
+        {done && (
+          <Button size="sm" variant="outline" disabled={busy || !r.customer_user_id}
+            onClick={() => { setRevise(r); setReviseValue(Number(r.amount).toFixed(2)); }}>
+            <Pencil className="mr-1 h-4 w-4" />Revise
+          </Button>
+        )}
       </div>
     );
   };

@@ -267,6 +267,23 @@ export default function CommunityCommissionTable({ roles = [], rules, fallbackRa
           <div className="flex justify-end gap-2"><Button variant="outline" disabled={busy} onClick={() => setConfirm(null)}>Cancel</Button><Button disabled={busy} onClick={() => void allocate()}>{busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Confirm allocation</Button></div>
         </DialogContent>
       </Dialog>
+      <Dialog open={!!revise} onOpenChange={o => { if (!o && !busy) setRevise(null); }}>
+        <DialogContent><DialogHeader><DialogTitle>Revise allocated commission?</DialogTitle><DialogDescription>{revise?.community_name} · {revise?.period_from} – {revise?.period_to}</DialogDescription></DialogHeader>
+          {revise && <>
+            <p className="text-sm">Allocated: <strong>{money(revise.amount)}</strong> to {revise.recipient_name || "this person"} ({TYPE_LABEL[revise.recipient_type]}).</p>
+            <div className="space-y-1">
+              <Label htmlFor="revise-amount">New commission (₹)</Label>
+              <Input id="revise-amount" type="number" min="0.01" step="0.01" value={reviseValue} onChange={e => setReviseValue(e.target.value)} disabled={busy} />
+            </div>
+            {reviseCommissionChange(Number(revise.amount), Number(reviseValue)) && (
+              <p className="text-xs text-muted-foreground">
+                The wallet will be {reviseCommissionChange(Number(revise.amount), Number(reviseValue))!.delta > 0 ? "credited" : "debited"} {money(Math.abs(reviseCommissionChange(Number(revise.amount), Number(reviseValue))!.delta))} right away.
+              </p>
+            )}
+            <div className="flex justify-end gap-2"><Button variant="outline" disabled={busy} onClick={() => setRevise(null)}>Cancel</Button><Button disabled={busy || !reviseCommissionChange(Number(revise.amount), Number(reviseValue))} onClick={() => void applyRevise()}>{busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Confirm revision</Button></div>
+          </>}
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { CheckCircle2, ChevronDown, ChevronRight, Loader2, RefreshCw, Wallet } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronRight, Loader2, Pencil, RefreshCw, Wallet } from "lucide-react";
 import { toast } from "sonner";
 
 const db = supabase as unknown as { from: (t: string) => any; rpc: (fn: string, a?: Record<string, unknown>) => any; functions: typeof supabase.functions };
@@ -35,6 +35,8 @@ export default function CommunityCommissionTable({ roles = [], rules, fallbackRa
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<SavedRow | null>(null);
+  const [revise, setRevise] = useState<SavedRow | null>(null);
+  const [reviseValue, setReviseValue] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "verified" | "allocated">("all");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});

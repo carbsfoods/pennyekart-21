@@ -7,6 +7,7 @@ import {
   payoutRequestable,
   committedPayoutAmount,
   payoutReviewActions,
+  reviseCommissionChange,
   PAYOUT_HOLD_PERCENT,
 } from "./commissionPayout";
 
@@ -66,5 +67,20 @@ describe("sales commission payout requests", () => {
     expect(payoutReviewActions("verified")).toEqual(["approve", "reject"]);
     expect(payoutReviewActions("approved")).toEqual([]);
     expect(payoutReviewActions("rejected")).toEqual([]);
+  });
+});
+
+describe("revising an already-allocated commission", () => {
+  it("rounds the revised amount and returns the wallet adjustment", () => {
+    expect(reviseCommissionChange(100, 123.456)).toEqual({ amount: 123.46, delta: 23.46 });
+  });
+  it("debits the wallet when the commission is reduced", () => {
+    expect(reviseCommissionChange(80, 60)).toEqual({ amount: 60, delta: -20 });
+  });
+  it("rejects zero, negative and unchanged revisions", () => {
+    expect(reviseCommissionChange(100, 0)).toBeNull();
+    expect(reviseCommissionChange(100, -5)).toBeNull();
+    expect(reviseCommissionChange(100, 100)).toBeNull();
+    expect(reviseCommissionChange(100, 100.001)).toBeNull();
   });
 });

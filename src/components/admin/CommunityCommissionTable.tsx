@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { commissionRateForRole, type CommissionRule } from "@/lib/communityCommission";
-import { commissionAmount, commissionDate, commissionRange } from "@/lib/commissionPayout";
+import { commissionAmount, commissionDate, commissionRange, reviseCommissionChange } from "@/lib/commissionPayout";
 import { buildGroupLeaderRows, buildHierarchyRows, groupAllocationRows, rateRoleName, type AreaCommunity, type PayoutRow } from "@/lib/commissionAllocation";
 import { isAllocationRole, normalizeRoleName, type AllocationPerson } from "@/lib/elifeAllocation";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { CheckCircle2, ChevronDown, ChevronRight, Loader2, RefreshCw, Wallet } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronRight, Loader2, Pencil, RefreshCw, Wallet } from "lucide-react";
 import { toast } from "sonner";
 
 const db = supabase as unknown as { from: (t: string) => any; rpc: (fn: string, a?: Record<string, unknown>) => any; functions: typeof supabase.functions };
@@ -35,6 +35,8 @@ export default function CommunityCommissionTable({ roles = [], rules, fallbackRa
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<SavedRow | null>(null);
+  const [revise, setRevise] = useState<SavedRow | null>(null);
+  const [reviseValue, setReviseValue] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "verified" | "allocated">("all");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -122,6 +124,18 @@ export default function CommunityCommissionTable({ roles = [], rules, fallbackRa
     toast.success("Sales commission credited to wallet");
     setConfirm(null); await load();
   };
+  /** Change an already-allocated commission: the database adjusts the wallet by the difference. */
+  const applyRevise = async () => {
+    if (!revise) return;
+    const change = reviseCommissionChange(Number(revise.amount), Number(reviseValue));
+    if (!change) return toast.error("Enter a new amount different from the allocated one");
+    setBusy(true);
+    const { error } = await db.rpc("revise_commission_allocation", { _id: revise.id, _new_amount: change.amount });
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("Commission revised and the wallet was adjusted");
+    setRevise(null); await load();
+  };
 
   /** One row per community: creator + hierarchy allocations of the same period stay together. */
   const groups = groupAllocationRows(rows).filter(g => {
@@ -156,6 +170,12 @@ export default function CommunityCommissionTable({ roles = [], rules, fallbackRa
           <Button size="sm" variant="outline" disabled={busy || !(amount > 0)} onClick={() => void verify(r)}><CheckCircle2 className="mr-1 h-4 w-4" />Verify</Button>
           <Button size="sm" disabled={busy || r.status !== "verified" || !r.customer_user_id || edits[r.id] !== undefined} onClick={() => setConfirm(r)}><Wallet className="mr-1 h-4 w-4" />Allocate</Button>
         </>}
+        {done && (
+          <Button size="sm" variant="outline" disabled={busy || !r.customer_user_id}
+            onClick={() => { setRevise(r); setReviseValue(Number(r.amount).toFixed(2)); }}>
+            <Pencil className="mr-1 h-4 w-4" />Revise
+          </Button>
+        )}
       </div>
     );
   };
@@ -245,6 +265,23 @@ export default function CommunityCommissionTable({ roles = [], rules, fallbackRa
         <DialogContent><DialogHeader><DialogTitle>Allocate sales commission?</DialogTitle><DialogDescription>{confirm?.community_name} · {from} – {to}</DialogDescription></DialogHeader>
           {confirm && <p className="text-sm">Credit <strong>{money(confirm.amount)}</strong> to {confirm.recipient_name || "this person"} ({TYPE_LABEL[confirm.recipient_type]})'s wallet?</p>}
           <div className="flex justify-end gap-2"><Button variant="outline" disabled={busy} onClick={() => setConfirm(null)}>Cancel</Button><Button disabled={busy} onClick={() => void allocate()}>{busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Confirm allocation</Button></div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!revise} onOpenChange={o => { if (!o && !busy) setRevise(null); }}>
+        <DialogContent><DialogHeader><DialogTitle>Revise allocated commission?</DialogTitle><DialogDescription>{revise?.community_name} · {revise?.period_from} – {revise?.period_to}</DialogDescription></DialogHeader>
+          {revise && <>
+            <p className="text-sm">Allocated: <strong>{money(revise.amount)}</strong> to {revise.recipient_name || "this person"} ({TYPE_LABEL[revise.recipient_type]}).</p>
+            <div className="space-y-1">
+              <Label htmlFor="revise-amount">New commission (₹)</Label>
+              <Input id="revise-amount" type="number" min="0.01" step="0.01" value={reviseValue} onChange={e => setReviseValue(e.target.value)} disabled={busy} />
+            </div>
+            {reviseCommissionChange(Number(revise.amount), Number(reviseValue)) && (
+              <p className="text-xs text-muted-foreground">
+                The wallet will be {reviseCommissionChange(Number(revise.amount), Number(reviseValue))!.delta > 0 ? "credited" : "debited"} {money(Math.abs(reviseCommissionChange(Number(revise.amount), Number(reviseValue))!.delta))} right away.
+              </p>
+            )}
+            <div className="flex justify-end gap-2"><Button variant="outline" disabled={busy} onClick={() => setRevise(null)}>Cancel</Button><Button disabled={busy || !reviseCommissionChange(Number(revise.amount), Number(reviseValue))} onClick={() => void applyRevise()}>{busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Confirm revision</Button></div>
+          </>}
         </DialogContent>
       </Dialog>
     </section>

@@ -558,6 +558,89 @@ const CommunitiesPage = () => {
           </CardContent>
         </Card>
           </TabsContent>
+          {isSuperAdmin && (
+            <TabsContent value="rules" className="space-y-6">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Fallback commission</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Default creator commission (% of profit) when a role has no specific rule.
+                  </p>
+                </CardHeader>
+                <CardContent className="max-w-sm">
+                  <div className="flex gap-2">
+                    <Input
+                      id="commission"
+                      type="number"
+                      min={0}
+                      max={100}
+                      step="0.1"
+                      value={commission}
+                      onChange={(e) => setCommission(e.target.value)}
+                    />
+                    <Button variant="outline" onClick={saveCommission} disabled={savingCommission}>
+                      {savingCommission ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Role commission rules</CardTitle>
+                  <p className="text-sm text-muted-foreground">Set an allowed range and active rate for each creator role. Community commissions use the creator’s assigned role.</p>
+                </CardHeader>
+                <CardContent className="space-y-5">
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(180px,1.5fr)_repeat(3,minmax(120px,1fr))_auto] lg:items-end">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="commission-role">Role</Label>
+                      <Select value={selectedRole} onValueChange={setSelectedRole}>
+                        <SelectTrigger id="commission-role"><SelectValue placeholder="Select a role" /></SelectTrigger>
+                        <SelectContent>
+                          {roles.map((role) => <SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="commission-min">Minimum (%)</Label>
+                      <Input id="commission-min" type="number" min="0" max="100" step="0.1" value={minimum} onChange={(event) => setMinimum(event.target.value)} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="commission-max">Maximum (%)</Label>
+                      <Input id="commission-max" type="number" min="0" max="100" step="0.1" value={maximum} onChange={(event) => setMaximum(event.target.value)} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="commission-rate">Active rate (%)</Label>
+                      <Input id="commission-rate" type="number" min="0" max="100" step="0.1" value={rate} onChange={(event) => setRate(event.target.value)} />
+                    </div>
+                    <Button onClick={saveRoleRule} disabled={savingRule || !selectedRole}>
+                      {savingRule ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                      Save rule
+                    </Button>
+                  </div>
+                  {Object.keys(rules).length > 0 ? (
+                    <div className="divide-y rounded-md border">
+                      {roles.filter((role) => rules[role.id]).map((role) => (
+                        <div key={role.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5">
+                          <span className="min-w-32 flex-1 font-medium">{role.name}</span>
+                          <span className="text-sm text-muted-foreground">Range {rules[role.id].minimum}%–{rules[role.id].maximum}%</span>
+                          <Badge variant="secondary">Rate {rules[role.id].rate}%</Badge>
+                          <Button size="icon" variant="ghost" aria-label={`Edit ${role.name} rule`} title="Edit rule" onClick={() => setSelectedRole(role.id)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" aria-label={`Remove ${role.name} rule`} title="Remove rule" onClick={() => removeRoleRule(role.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No role-specific commission rules saved. The fallback rate is used until a rule is added.</p>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
         </Tabs>
 
         <Dialog open={renameTarget !== null} onOpenChange={(open) => { if (!open) setRenameTarget(null); }}>

@@ -255,6 +255,8 @@ const ReportsPage = () => {
       setLocalBodies((lb ?? []) as LocalBody[]);
       setDistricts((dist ?? []) as District[]);
       setSearchHistory(sh ?? []);
+      setCommunities((com ?? []) as Community[]);
+      setCommunityMembers((cm ?? []) as CommunityMember[]);
       setLoading(false);
     };
     load();
